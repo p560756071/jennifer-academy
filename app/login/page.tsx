@@ -45,6 +45,7 @@ export default function LoginPage() {
     })
 
     if (error) {
+      console.error("SignUp Error:", error)
       setError(error.message)
     } else {
       setError("註冊成功！請檢查信箱驗證連結。")
