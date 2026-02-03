@@ -1,11 +1,35 @@
 import { CourseCard } from "@/components/CourseCard"
 import { courses } from "@/lib/data"
+import { createClient } from "@/lib/supabase/server"
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // 取得該使用者的所有進度
+  let progressMap: Record<string, number> = {}
+  if (user) {
+    const { data: progressData } = await supabase
+      .from('progress')
+      .select('video_id, watched_seconds')
+      .eq('user_id', user.id)
+
+    if (progressData) {
+      progressData.forEach((p) => {
+        // 簡單轉換：假設每部影片總長 600秒 (10分鐘) 來計算百分比
+        // 實際專案應該要在 database 存影片總長度 duration_seconds
+        // 這裡先用簡單邏輯 demo
+        const duration = 600 
+        const percentage = Math.min(100, Math.round((p.watched_seconds / duration) * 100))
+        progressMap[p.video_id] = percentage
+      })
+    }
+  }
+
   return (
     <main className="p-8">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">歡迎回來，Peter 👋</h1>
+        <h1 className="text-3xl font-bold mb-2">歡迎回來，{user?.email?.split('@')[0] || "學員"} 👋</h1>
         <p className="text-neutral-500">準備好開始今天的學習了嗎？這是為你精選的課程。</p>
       </header>
 
@@ -19,7 +43,11 @@ export default function Home() {
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {courses.map((course) => (
-            <CourseCard key={course.id} {...course} />
+            <CourseCard 
+              key={course.id} 
+              {...course} 
+              progress={progressMap[course.videoId] || 0}
+            />
           ))}
         </div>
       </section>
