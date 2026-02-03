@@ -1,6 +1,10 @@
 import { Award, Book, Clock, Star } from "lucide-react"
+import { createClient } from "@/lib/supabase/server"
 
-export default function ProfilePage() {
+export default async function ProfilePage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
   return (
     <main className="p-8">
       <header className="mb-8">
@@ -10,13 +14,13 @@ export default function ProfilePage() {
       <div className="bg-white dark:bg-neutral-900 rounded-2xl p-8 border border-neutral-200 dark:border-neutral-800 mb-8">
         <div className="flex items-center gap-6">
           <div className="h-24 w-24 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 text-3xl font-bold">
-            PC
+            {user?.email?.[0].toUpperCase() || "U"}
           </div>
           <div>
-            <h2 className="text-2xl font-bold">Peter Chen</h2>
-            <p className="text-neutral-500 mb-2">peter.chen@example.com</p>
+            <h2 className="text-2xl font-bold">{user?.email?.split('@')[0] || "學員"}</h2>
+            <p className="text-neutral-500 mb-2">{user?.email || "尚未登入"}</p>
             <span className="bg-brand-100 text-brand-700 px-3 py-1 rounded-full text-sm font-medium">
-              付費會員
+              一般會員
             </span>
           </div>
         </div>
