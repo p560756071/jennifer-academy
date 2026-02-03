@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 
 interface VideoPlayerProps {
@@ -9,13 +9,11 @@ interface VideoPlayerProps {
 
 export function VideoPlayer({ videoId }: VideoPlayerProps) {
   const supabase = createClient()
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const [player, setPlayer] = useState<any>(null)
-  const [initialTime, setInitialTime] = useState(0)
-  
-  // 載入 YouTube IFrame API
+  const playerRef = useRef<any>(null)
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  // 1. 載入 YouTube IFrame API
   useEffect(() => {
-    // 檢查是否已載入 API
     if (!window.YT) {
       const tag = document.createElement('script')
       tag.src = "https://www.youtube.com/iframe_api"
@@ -23,96 +21,85 @@ export function VideoPlayer({ videoId }: VideoPlayerProps) {
       firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
     }
 
-    // 定義 API 載入後的回呼
+    // 當 API 準備好時，初始化播放器
     window.onYouTubeIframeAPIReady = () => {
-      loadPlayer()
+      createPlayer()
     }
 
-    // 如果 API 已經在頁面上，直接載入
+    // 如果 API 已經在頁面上（例如切換頁面回來），直接初始化
     if (window.YT && window.YT.Player) {
-      loadPlayer()
+      createPlayer()
     }
 
     return () => {
-      if (player) {
-        player.destroy()
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      // 注意：不要 destroy player，因為 React 重新渲染可能會導致問題
     }
   }, [videoId])
 
-  // 讀取上次觀看進度
-  useEffect(() => {
-    async function fetchProgress() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
+  const createPlayer = async () => {
+    // 先去資料庫抓上次進度
+    const { data: { user } } = await supabase.auth.getUser()
+    let startTime = 0
+    
+    if (user) {
       const { data } = await supabase
         .from('progress')
         .select('watched_seconds')
         .eq('user_id', user.id)
         .eq('video_id', videoId)
         .single()
-
-      if (data) {
-        setInitialTime(data.watched_seconds)
-      }
+      
+      if (data) startTime = data.watched_seconds
     }
-    fetchProgress()
-  }, [videoId])
 
-  const loadPlayer = () => {
-    const newPlayer = new window.YT.Player(`youtube-player-${videoId}`, {
+    // 建立播放器
+    playerRef.current = new window.YT.Player(`youtube-player-${videoId}`, {
       videoId: videoId,
       width: '100%',
       height: '100%',
       playerVars: {
         autoplay: 0,
         controls: 1,
-        start: initialTime, // 從上次進度開始
+        start: startTime, // 設定起始時間
+        origin: window.location.origin
       },
       events: {
-        onStateChange: onPlayerStateChange,
-        onReady: (event: any) => {
-          if (initialTime > 0) {
-            event.target.seekTo(initialTime)
-          }
-        }
-      },
-    })
-    setPlayer(newPlayer)
-  }
-
-  // 儲存進度
-  const saveProgress = async (seconds: number) => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    await supabase.from('progress').upsert({
-      user_id: user.id,
-      video_id: videoId,
-      watched_seconds: Math.floor(seconds),
-      updated_at: new Date().toISOString(),
+        onStateChange: onPlayerStateChange
+      }
     })
   }
-
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const onPlayerStateChange = (event: any) => {
     // 1 = Playing
     if (event.data === 1) {
-      // 開始定期儲存 (每 5 秒)
+      // 開始每 5 秒儲存一次
       intervalRef.current = setInterval(() => {
-        const currentTime = event.target.getCurrentTime()
-        saveProgress(currentTime)
+        saveProgress()
       }, 5000)
     } else {
-      // 暫停或結束時，清除 Timer 並立即儲存一次
+      // 暫停或結束，清除 Timer 並立即存一次
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
         intervalRef.current = null
       }
-      const currentTime = event.target.getCurrentTime()
-      saveProgress(currentTime)
+      saveProgress()
+    }
+  }
+
+  const saveProgress = async () => {
+    if (!playerRef.current || !playerRef.current.getCurrentTime) return
+    
+    const currentTime = playerRef.current.getCurrentTime()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (user && currentTime > 0) {
+      await supabase.from('progress').upsert({
+        user_id: user.id,
+        video_id: videoId,
+        watched_seconds: Math.floor(currentTime),
+        updated_at: new Date().toISOString(),
+      })
     }
   }
 
@@ -123,7 +110,6 @@ export function VideoPlayer({ videoId }: VideoPlayerProps) {
   )
 }
 
-// 擴充 window 型別以支援 YouTube API
 declare global {
   interface Window {
     YT: any
