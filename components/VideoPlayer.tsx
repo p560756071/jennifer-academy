@@ -60,9 +60,14 @@ export function VideoPlayer({ videoId }: VideoPlayerProps) {
       height: '100%',
       playerVars: {
         autoplay: 0,
-        controls: 1,
-        start: startTime, // 設定起始時間
-        origin: window.location.origin
+        controls: 1, // 雖然我們不能完全隱藏控制列，但可以設定 modestbranding
+        start: startTime,
+        origin: window.location.origin,
+        modestbranding: 1, // 隱藏 YouTube Logo
+        rel: 0, // 不顯示相關影片
+        fs: 0, // 禁止全螢幕按鈕 (可選)
+        iv_load_policy: 3, // 不顯示影片註釋
+        disablekb: 1 // 禁止鍵盤控制 (防止按 'k' 暫停等)
       },
       events: {
         onStateChange: onPlayerStateChange
