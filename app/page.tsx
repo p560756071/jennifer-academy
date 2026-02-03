@@ -34,6 +34,11 @@ export default async function Home() {
 
   return (
     <main className="p-8">
+      {/* DEBUG: 顯示目前讀取到的進度資料 */}
+      <div className="bg-yellow-100 text-yellow-800 p-2 mb-4 rounded text-xs font-mono">
+        Debug Progress: {JSON.stringify(progressMap)}
+      </div>
+
       <header className="mb-8">
         <h1 className="text-3xl font-bold mb-2">歡迎回來，{user?.email?.split('@')[0] || "學員"} 👋</h1>
         <p className="text-neutral-500">準備好開始今天的學習了嗎？這是為你精選的課程。</p>
