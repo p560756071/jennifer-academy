@@ -2,6 +2,8 @@ import { CourseCard } from "@/components/CourseCard"
 import { courses } from "@/lib/data"
 import { createClient } from "@/lib/supabase/server"
 
+export const dynamic = "force-dynamic" // 強制動態渲染
+
 export default async function Home() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -18,7 +20,6 @@ export default async function Home() {
       progressData.forEach((p) => {
         // 簡單轉換：假設每部影片總長 600秒 (10分鐘) 來計算百分比
         // 實際專案應該要在 database 存影片總長度 duration_seconds
-        // 這裡先用簡單邏輯 demo
         const duration = 600 
         const percentage = Math.min(100, Math.round((p.watched_seconds / duration) * 100))
         progressMap[p.video_id] = percentage
