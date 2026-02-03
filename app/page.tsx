@@ -19,8 +19,13 @@ export default async function Home() {
     if (progressData) {
       progressData.forEach((p) => {
         // 簡單轉換：假設每部影片總長 600秒 (10分鐘) 來計算百分比
-        // 實際專案應該要在 database 存影片總長度 duration_seconds
-        const duration = 600 
+        // 這裡可以針對不同影片 ID 設定不同長度
+        const durationMap: Record<string, number> = {
+          "8yr5zzOfNz0": 515, // 8:35
+          "bqrpXfzCTUw": 669, // 11:09
+          "FhHQu8y_3c0": 589  // 9:49
+        }
+        const duration = durationMap[p.video_id] || 600
         const percentage = Math.min(100, Math.round((p.watched_seconds / duration) * 100))
         progressMap[p.video_id] = percentage
       })
